@@ -275,6 +275,8 @@ class CGPT4Translate(BaseTranslate):
                     continue
 
             result_text = resp
+            
+
             if "```json" in result_text:
                 lang_list, code_list = extract_code_blocks(result_text)
                 if len(lang_list) > 0 and len(code_list) > 0:
@@ -294,7 +296,14 @@ class CGPT4Translate(BaseTranslate):
             key_name = "dst" if not proofread else "newdst"
             error_flag = False
             error_message = ""
+
             for line in result_text.split("\n"):
+                if "claude" not in resp.lower():
+                    LOGGER.error("-> 模型异常：\n" + result_text + "\n")
+                    error_flag = True
+                    error_message = "模型异常"
+                    break
+                
                 try:
                     line_json = json.loads(line)  # 尝试解析json
                     i += 1
@@ -389,6 +398,12 @@ class CGPT4Translate(BaseTranslate):
 
                 await asyncio.sleep(1)
                 self._del_last_answer()
+
+                if error_message == "模型异常":
+                    return await self.translate(
+                        trans_list, gptdict
+                    )
+                
                 self.retry_count += 1
                 # 切换模式
                 self._set_temp_type("normal")
